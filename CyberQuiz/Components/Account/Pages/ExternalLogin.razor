@@ -1,4 +1,4 @@
-﻿@page "/Account/ExternalLogin"
+﻿@* @page "/Account/ExternalLogin"
 
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
@@ -6,7 +6,7 @@
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
-@using CyberQuiz.Data
+
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
@@ -215,3 +215,4 @@
         public string Email { get; set; } = "";
     }
 }
+ *@
