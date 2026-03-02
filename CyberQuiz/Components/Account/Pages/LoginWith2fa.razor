@@ -1,8 +1,7 @@
-﻿@page "/Account/LoginWith2fa"
+﻿@* @page "/Account/LoginWith2fa"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
-@using CyberQuiz.Data
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
@@ -101,3 +100,4 @@
         public bool RememberMachine { get; set; }
     }
 }
+ *@
