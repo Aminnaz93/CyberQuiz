@@ -1,8 +1,12 @@
 ﻿@page "/subcategories/{CategoryId:int}"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @inject NavigationManager NavigationManager
 @inject HttpClient Http
 @using CyberQuiz.Shared.DTOs
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+
 
 <PageTitle>Subkategorier</PageTitle>
 
@@ -84,17 +88,25 @@
 
     private List<SubCategoryDto>? subCategories = null;
 
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
     protected override async Task OnInitializedAsync()
     {
-        // Hämtar subkategorier från API → SubCategoriesController → BLL → DAL
-        subCategories = await Http.GetFromJsonAsync<List<SubCategoryDto>>($"api/subcategories/{CategoryId}");
+        var authState = await AuthenticationStateTask;
+        var userId = authState.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId == null) return;
+
+        subCategories = await Http.GetFromJsonAsync<List<SubCategoryDto>>(
+            $"api/subcategories/{CategoryId}?userId={userId}");
     }
 
     private void OnSubCategoryClick(SubCategoryDto sub)
     {
         if (sub.IsUnlocked)
         {
-            // Navigerar till ex. /quiz/1
             NavigationManager.NavigateTo($"/quiz/{sub.Id}");
         }
     }

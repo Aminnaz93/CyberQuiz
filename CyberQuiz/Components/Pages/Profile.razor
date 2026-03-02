@@ -1,0 +1,149 @@
+﻿@page "/profile"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@using CyberQuiz.Shared.DTOs
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+<PageTitle>Min Profil</PageTitle>
+
+<div class="profile-container">
+    <h2>Min Progression</h2>
+
+    @if (progressions == null)
+    {
+        <p>Laddar progression...</p>
+    }
+    else if (!progressions.Any())
+    {
+        <p>Du har inte svarat på några frågor ännu.</p>
+    }
+    else
+    {
+        @foreach (var p in progressions)
+        {
+            <div class="progression-card @(p.IsPassed ? "passed" : "not-passed")">
+                <p>Subkategori: @p.SubCategoryId</p>
+                @if (p.IsPassed)
+                {
+                    <p>Klarad</p>
+                }
+                else
+                {
+                    <p>Ej klarad</p>
+                }
+            </div>
+        }
+    }
+
+    <div class="manage-links">
+        <h3>Kontoinställningar</h3>
+        <a href="Account/Manage/Email" class="manage-btn">Ändra e-post</a>
+        <a href="Account/Manage/ChangePassword" class="manage-btn">Ändra lösenord</a>
+    </div>
+
+    <button class="back-btn" @onclick="GoBack">← Tillbaka</button>
+</div>
+
+<style>
+    .profile-container {
+        max-width: 500px;
+        margin: 2rem auto;
+        padding: 1rem;
+    }
+
+        .profile-container h2 {
+            margin-bottom: 1.5rem;
+        }
+
+    .progression-card {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+        .progression-card.passed {
+            border-color: #16a34a;
+            background: #dcfce7;
+        }
+
+        .progression-card.not-passed {
+            border-color: #dc2626;
+            background: #fee2e2;
+        }
+
+        .progression-card p {
+            margin: 0 0 0.5rem 0;
+        }
+
+    .manage-links {
+        margin-top: 2rem;
+        padding: 1.5rem;
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        background: white;
+    }
+
+        .manage-links h3 {
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            color: #444;
+        }
+
+    .manage-btn {
+        display: block;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        border: 2px solid #7c3aed;
+        border-radius: 6px;
+        color: #7c3aed;
+        text-decoration: none;
+        font-size: 0.95rem;
+    }
+
+        .manage-btn:hover {
+            background: #f3f0ff;
+        }
+
+    .back-btn {
+        margin-top: 1rem;
+        padding: 0.75rem 1.5rem;
+        background: #7c3aed;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1rem;
+    }
+
+        .back-btn:hover {
+            background: #6d28d9;
+        }
+</style>
+
+@code {
+    private List<ProgressionDto>? progressions = null;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var userId = authState.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId == null) return;
+
+        progressions = await Http.GetFromJsonAsync<List<ProgressionDto>>(
+            $"api/user/progression?userId={userId}");
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/categories");
+    }
+}

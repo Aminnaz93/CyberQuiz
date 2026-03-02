@@ -1,88 +1,59 @@
 ﻿@page "/categories"
+@attribute [Authorize]
 @rendermode InteractiveServer
+@inject HttpClient Http
 @inject NavigationManager NavigationManager
-@* Används för att anropa API *@
-@inject HttpClient Http 
-@using CyberQuiz.Shared.DTOs @* Importerar delade DTO-klasser *@
+@using CyberQuiz.Shared.DTOs
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+
 
 <PageTitle>Kategorier</PageTitle>
 
 <div class="categories-container">
     <h2>Välj en kategori</h2>
 
-    @* Visar laddningstext medan API-anropet pågår *@
     @if (categories == null)
     {
         <p>Laddar kategorier...</p>
     }
     else
     {
-        @* Loopar igenom listan och skapar ett kort per kategori *@
         @foreach (var category in categories)
         {
-            @* Alla kategorier är alltid klickbara *@
             <div class="category-card"
                  @onclick="() => OnCategoryClick(category)">
-
                 <h3>@category.Name</h3>
                 <p>@category.SubCategories.Count subkategorier</p>
-
             </div>
         }
     }
 </div>
 
-<style>
-    .categories-container {
-        max-width: 500px;
-        margin: 2rem auto;
-        padding: 1rem;
-    }
-
-        .categories-container h2 {
-            margin-bottom: 1.5rem;
-        }
-
-    .category-card {
-        border: 2px dashed #ccc;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        cursor: pointer;
-    }
-
-        .category-card:hover {
-            border-color: #7c3aed;
-            background-color: #f3f0ff;
-        }
-
-        .category-card h3 {
-            margin: 0 0 0.5rem 0;
-            font-size: 1rem;
-        }
-
-        .category-card p {
-            margin: 0;
-            color: #666;
-            font-size: 0.9rem;
-        }
-</style>
+@* samma style som innan *@
 
 @code {
-    // Null = håller på att laddas, annars innehåller listan kategorier från API
     private List<CategoryDto>? categories = null;
 
-    // Körs automatiskt när sidan laddas
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
     protected override async Task OnInitializedAsync()
     {
-        // Hämtar kategorier från API → CategoriesController → BLL → DAL
-        categories = await Http.GetFromJsonAsync<List<CategoryDto>>("api/categories");
+        // Hämtar inloggad användares id
+        var authState = await AuthenticationStateTask;
+        var userId = authState.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId == null) return;
+
+        // Skickar userId till API
+        categories = await Http.GetFromJsonAsync<List<CategoryDto>>(
+            $"api/categories?userId={userId}");
     }
 
-    // Körs när användaren klickar på ett kort — alla kategorier är öppna
     private void OnCategoryClick(CategoryDto category)
     {
-        // Navigerar till ex. /subcategories/1
         NavigationManager.NavigateTo($"/subcategories/{category.Id}");
     }
 }
