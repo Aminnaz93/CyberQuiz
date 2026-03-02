@@ -1,6 +1,8 @@
 using CyberQuiz.Components;
 using CyberQuiz.Components.Account;
-using CyberQuiz.Data;
+using CyberQuiz.DAL;
+using CyberQuiz.DAL.Models;
+using CyberQuiz.UI.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +14,10 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 //HTTP resurs som pekar på API.
-/*builder.Services.AddScoped(sp => new HttpClient
+builder.Services.AddScoped(sp => new HttpClient
 {
-    BaseAddress = new Uri("https://localhost:????/") // Din API-adress
-});*/
+    BaseAddress = new Uri("https://localhost:7088/")
+});
 
 
 builder.Services.AddCascadingAuthenticationState();

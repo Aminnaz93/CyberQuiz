@@ -2,11 +2,22 @@ using CyberQuiz.BLL.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
 //Lägg till cors policy.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowUI", policy =>
+    {
+        policy.WithOrigins("https://localhost:7047")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
 
+
+// Add services to the container.
 builder.Services.AddControllers();
 // När någon frågar efter IQuizService får de en QuizService tillbaka.
 builder.Services.AddScoped<IQuizService, QuizService>();
@@ -24,6 +35,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowUI");
 
 app.UseAuthentication();
 app.UseAuthorization();
