@@ -1,6 +1,7 @@
 using CyberQuiz.API.Services;
 using CyberQuiz.BLL.Services;
 using CyberQuiz.DAL;
+using CyberQuiz.DAL.Data;
 using CyberQuiz.DAL.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;  
 using Microsoft.AspNetCore.Identity;
@@ -31,11 +32,29 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<IQuizService, QuizService>();
 // När någon frågar efter IUserResultService får de en UserResultService tillbaka.
 builder.Services.AddScoped<IUserResultService, UserResultService>();
+// AI-service för studieråd
+builder.Services.AddScoped<IAIService, AIService>();
+
+// Registrera repositories
+builder.Services.AddScoped<CyberQuiz.DAL.Repositories.IUserResultRepository, CyberQuiz.DAL.Repositories.UserResultRepository>();
+builder.Services.AddScoped<CyberQuiz.DAL.Repositories.IQuestionRepository, CyberQuiz.DAL.Repositories.QuestionRepository>();
+builder.Services.AddScoped<CyberQuiz.DAL.Repositories.ICategoryRepository, CyberQuiz.DAL.Repositories.CategoryRepository>();
+builder.Services.AddScoped<CyberQuiz.DAL.Repositories.ISubCategoryRepository, CyberQuiz.DAL.Repositories.SubCategoryRepository>();
+
 // När någon frågar efter IUserService får de en UserService tillbaka.
 builder.Services.AddScoped<IUserService, UserService>(); 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// HttpClient för Ollama
+builder.Services.AddHttpClient("Ollama", client =>
+{
+    var ollamaBaseUrl = builder.Configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
+    client.BaseAddress = new Uri(ollamaBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 
 //Databas
@@ -45,6 +64,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
+// Lägg till Data Protection (krävs för Identity tokens)
+builder.Services.AddDataProtection();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
@@ -94,6 +115,24 @@ builder.Services.AddAuthorization();
 
 
 var app = builder.Build();
+
+// Seeda testanvändare i development
+if (app.Environment.IsDevelopment())
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        try
+        {
+            await UserSeeder.SeedTestUserAsync(services);
+        }
+        catch (Exception ex)
+        {
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "An error occurred while seeding test user.");
+        }
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

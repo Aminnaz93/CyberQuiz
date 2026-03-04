@@ -76,81 +76,20 @@ namespace CyberQuiz.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Kontrollera att email och lösenord är rätt
-            var result = await _userService.PasswordSignInAsync(
-                dto.Email, dto.Password, isPersistent: false, lockoutOnFailure: false);
 
-            // Om fel lösenord eller email — skicka tillbaka felmeddelande
-            if (!result.Succeeded)
-                return Unauthorized("Fel e-post eller lösenord.");
+using Microsoft.AspNetCore.Identity;
 
-            // Hämta användaren från databasen
-            var user = await _userManager.FindByEmailAsync(dto.Email);
-            if (user == null)
-                return Unauthorized();
+namespace CyberQuiz.API.Controllers
+{
 
-            // Skapa en token och skicka tillbaka den till UI
-            var token = GenerateJwtToken(user);
-            return Ok(new { token });
-        }
 
-        // GET api/auth/me
-        // UI anropar denna för att kolla vem som är inloggad
-        // behövs för  att man skickar med sin token
- 
-        [HttpGet("me")]
-        [Authorize]
-        public async Task<IActionResult> Me()
+    public class UserManagementController
+    {
+        private readonly SignInManager signInManager;
+
+        public UserManagementController(SignInManager SignInManager)
         {
-            // Plocka ut användarens id från token
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId == null)
-                return Unauthorized();
-
-            // Hämta användaren från databasen med det id:t
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-                return Unauthorized();
-
-            // Skicka tillbaka användarens info till UI
-            return Ok(new UserDto
-            {
-                Id = user.Id,
-                Email = user.Email ?? string.Empty,
-                UserName = user.UserName ?? string.Empty
-            });
-        }
-
-      
-        // HJÄLPMETOD — skapar en JWT-token för en användare
-        // Token är ett "bevis", bekräftelse att man är inloggad
-        // UI sparar denna och skickar med den på varje anrop till API
-    
-        private string GenerateJwtToken(ApplicationUser user)
-        {
-            // Hämta den hemliga nyckeln från appsettings.json
-            var jwtKey = _configuration["Jwt:Key"]
-                ?? throw new InvalidOperationException("JWT-nyckel saknas i appsettings.json");
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            // Lägg in användarens info i token
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
-                new Claim(ClaimTypes.Name, user.UserName ?? string.Empty)
-            };
-
-            // Skapa token som gäller i 7 dagar
-            var token = new JwtSecurityToken(
-                claims: claims,
-                expires: DateTime.UtcNow.AddDays(7),
-                signingCredentials: credentials
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            signInManager = SignInManager;
         }
     }
 }
