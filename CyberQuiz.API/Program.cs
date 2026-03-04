@@ -54,7 +54,7 @@ builder.Services.AddHttpClient("Ollama", client =>
     client.Timeout = TimeSpan.FromSeconds(60);
 });
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+//var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 
 //Databas
