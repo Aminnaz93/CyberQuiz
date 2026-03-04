@@ -166,6 +166,7 @@ namespace CyberQuiz.BLL.Services
         //Email.razor -->
         // Skickar ett verifieringsmail till användarens nuvarande e-post.
         // Används om e-posten inte är bekräftad sedan tidigare.
+        //Kanske inte opimal i detta projekt
         public async Task SendEmailVerificationAsync(string userId, string verificationLink)
         {
             var user = await GetUserByIdOrThrowAsync(userId);
@@ -173,6 +174,21 @@ namespace CyberQuiz.BLL.Services
                 ?? throw new InvalidOperationException($"Användare med id '{userId}' saknar e-postadress.");
 
             await _emailSender.SendConfirmationLinkAsync(user, email, verificationLink);
+        }
+
+        // ChangeEmail --> Enklare för detta projekt! Verifierar lösenord och byter e-post direkt
+        public async Task<IdentityResult> ChangeEmailAsync(string userId, string currentPassword, string newEmail)
+        {
+            var user = await GetUserByIdOrThrowAsync(userId);
+
+            // Verifiera att lösenordet stämmer innan bytet genomförs
+            var passwordCorrect = await _userManager.CheckPasswordAsync(user, currentPassword);
+            if (!passwordCorrect)
+                return IdentityResult.Failed(new IdentityError { Description = "Fel lösenord." });
+
+            // Generera token och genomför bytet direkt
+            var token = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+            return await _userManager.ChangeEmailAsync(user, newEmail, token);
         }
 
         // ------ PRIVATA HJÄLPMETODER --------

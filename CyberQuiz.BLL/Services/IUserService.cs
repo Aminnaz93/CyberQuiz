@@ -52,5 +52,8 @@ namespace CyberQuiz.BLL.Services
 
         // Email.razor --> Skickar verifieringsmail (om e-post ej bekräftad) (OnSendEmailVerificationAsync)
         Task SendEmailVerificationAsync(string userId, string verificationLink);
+
+        // ChangeEmail --> Verifierar lösenord och byter e-post direkt
+        Task<IdentityResult> ChangeEmailAsync(string userId, string currentPassword, string newEmail);
     }
 }
