@@ -51,6 +51,9 @@
     // Felmeddelande om registrering misslyckas
     private string? errorMessage;
 
+    // Blir sant om registreringen lyckades- får ett meddelande då. 
+    private bool registrationSucceded = false;
+
     private async Task RegisterUser()
     {
         errorMessage = null;
@@ -69,7 +72,7 @@
         if (success)
         {
             // Registrering lyckades — gå till kategorisidan
-            NavigationManager.NavigateTo("/categories");
+            registrationSucceded = true;
         }
         else
         {

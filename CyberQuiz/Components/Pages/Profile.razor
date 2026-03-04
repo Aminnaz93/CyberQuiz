@@ -1,11 +1,9 @@
 ﻿@page "/profile"
-@attribute [Authorize]
 @rendermode InteractiveServer
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
+@inject CyberQuiz.Services.AuthService AuthService
 @using CyberQuiz.Shared.DTOs
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
 
 <PageTitle>Min Profil</PageTitle>
 
@@ -40,8 +38,8 @@
 
     <div class="manage-links">
         <h3>Kontoinställningar</h3>
-        <a href="Account/Manage/Email" class="manage-btn">Ändra e-post</a>
-        <a href="Account/Manage/ChangePassword" class="manage-btn">Ändra lösenord</a>
+        <a href="/Account/Manage/Email" class="manage-btn">Ändra e-post</a>
+        <a href="/Account/Manage/ChangePassword" class="manage-btn">Ändra lösenord</a>
     </div>
 
     <button class="back-btn" @onclick="GoBack">← Tillbaka</button>
@@ -127,16 +125,17 @@
 @code {
     private List<ProgressionDto>? progressions = null;
 
-    [CascadingParameter]
-    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
-
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateTask;
-        var userId = authState.User.FindFirst(
-            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        // Hämta userId från AuthService istället för AuthenticationState
+        var userId = AuthService.UserId;
 
-        if (userId == null) return;
+        // Om användaren inte är inloggad — gå till login
+        if (userId == null)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
 
         progressions = await Http.GetFromJsonAsync<List<ProgressionDto>>(
             $"api/user/progression?userId={userId}");
