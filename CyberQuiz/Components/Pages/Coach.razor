@@ -1,5 +1,5 @@
 ﻿@page "/coach"
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 @inject CyberQuiz.Services.AuthService AuthService
