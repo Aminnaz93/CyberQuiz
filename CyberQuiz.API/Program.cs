@@ -14,7 +14,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Förläng Kestrel request timeout för AI-endpoints
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
-    serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
+    // Matcha Ollama's HttpClient timeout (5 minuter) + lite marginal
+    serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(6);
     serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(2);
 });
 
