@@ -27,7 +27,7 @@ namespace CyberQuiz.BLL.Services
             _httpClient = httpClientFactory.CreateClient("Ollama");
             _logger = logger;
             _ollamaBaseUrl = configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
-            _modelName = configuration["Ollama:Model"] ?? "llama3.2";
+            _modelName = configuration["Ollama:Model"] ?? "phi3:latest";
         }
 
         public async Task<AIRecommendationResponseDto> GetStudyRecommendationsAsync(

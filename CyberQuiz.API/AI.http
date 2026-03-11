@@ -1,8 +1,8 @@
-@CyberQuiz.API_HostAddress = http://localhost:5156
+@CyberQuiz.API_HostAddress = http://localhost:11434
 @timeout = 120000
 
 ### Health Check - Testa om Ollama körs
-GET {{CyberQuiz.API_HostAddress}}/api/ai/health
+GET {{CyberQuiz.API_HostAddress}}
 Accept: application/json
 
 ###
