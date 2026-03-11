@@ -43,7 +43,8 @@ namespace CyberQuiz.BLL.Services
                 QuestionId = answerSubmit.QuestionId,
                 AnswerOptionId = answerSubmit.SelectedAnswerOptionId,
                 IsCorrect = selectedOption.IsCorrect,
-                AnsweredAt = DateTimeOffset.UtcNow
+                AnsweredAt = DateTimeOffset.UtcNow,
+                AttemptId = answerSubmit.AttemptId
             };
             await _userResultRepository.AddUserResultAsync(userResult);
 

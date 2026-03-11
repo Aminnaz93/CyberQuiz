@@ -192,6 +192,7 @@
 
     private List<QuestionDto>? questions = null;
     private Dictionary<int, AnswerResultDto> results = new();
+    private Guid _attemptId = Guid.NewGuid(); // unikt ID för denna quiz-omgång, genereras varje gång sidan laddas
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
@@ -226,7 +227,8 @@
         {
             QuestionId = questionId,
             SelectedAnswerOptionId = selectedOptionId,
-            UserId = userId ?? ""
+            UserId = userId ?? "",
+            AttemptId = _attemptId
         });
 
         if (result.IsSuccessStatusCode)

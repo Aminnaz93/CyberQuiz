@@ -134,9 +134,22 @@ namespace CyberQuiz.BLL.Services
             if (userResults == null || !userResults.Any())
                 return false;
 
-            // Ta senaste svaret per fråga – om användaren gjort quizet flera gånger
-            // räknas bara det senaste svaret per fråga för att undvika att gamla försök
-            // ackumuleras och drar ner (eller upp) resultatet
+            // Gruppera på AttemptId och hitta bästa genomförda quiz-omgång
+            var attemptsWithId = userResults
+                .Where(r => r.AttemptId.HasValue)
+                .GroupBy(r => r.AttemptId)
+                .ToList();
+
+            if (attemptsWithId.Any())
+            {
+                // Bästa omgång = den med högst andel rätt svar
+                var bestScore = attemptsWithId
+                    .Select(g => (double)g.Count(r => r.IsCorrect) / g.Count())
+                    .Max();
+                return bestScore >= QuizConstants.MinPassScore;
+            }
+
+            // Fallback för äldre data utan AttemptId: senaste svaret per fråga
             var latestPerQuestion = userResults
                 .GroupBy(r => r.QuestionId)
                 .Select(g => g.OrderByDescending(r => r.AnsweredAt).First())

@@ -40,13 +40,19 @@ namespace CyberQuiz.DAL.Data
             var answeredAt = DateTime.UtcNow.AddDays(-7);
 
             // SubCategory 1: Grundläggande Nätverk (80% rätt - 8 av 10 rätt)
-            userResults.AddRange(CreateResults(testUser.Id, 1, new[] { 1, 1, 1, 1, 1, 1, 1, 1, 4, 7 }, ref answeredAt));
+            // Options 1,4,7,10,13,16,19,22 = rätt (första per fråga), 26,29 = fel
+            // Guid.NewGuid() = unikt ID för denna seed-omgång
+            userResults.AddRange(CreateResults(testUser.Id, 1, new[] { 1, 4, 7, 10, 13, 16, 19, 22, 26, 29 }, Guid.NewGuid(), ref answeredAt));
 
             // SubCategory 4: OWASP Top 10 (40% rätt - 4 av 10 rätt)
-            userResults.AddRange(CreateResults(testUser.Id, 4, new[] { 31, 93, 94, 95, 96, 97, 35, 36, 37, 38 }, ref answeredAt));
+            // Options 91,94,97,100 = rätt, 104,107,110,113,116,119 = fel
+            // Eget Guid – separar omgång från subkategori 1
+            userResults.AddRange(CreateResults(testUser.Id, 4, new[] { 91, 94, 97, 100, 104, 107, 110, 113, 116, 119 }, Guid.NewGuid(), ref answeredAt));
 
             // SubCategory 7: Phishing (60% rätt - 6 av 10 rätt)
-            userResults.AddRange(CreateResults(testUser.Id, 7, new[] { 61, 62, 63, 187, 188, 189, 67, 68, 69, 70 }, ref answeredAt));
+            // Options 181,184,187,190,193,196 = rätt, 200,203,206,209 = fel
+            // Eget Guid – separar omgång från ovanstående
+            userResults.AddRange(CreateResults(testUser.Id, 7, new[] { 181, 184, 187, 190, 193, 196, 200, 203, 206, 209 }, Guid.NewGuid(), ref answeredAt));
 
             // Spara till databasen
             context.UserResults.AddRange(userResults);
@@ -61,9 +67,10 @@ namespace CyberQuiz.DAL.Data
         }
 
         private static List<UserResult> CreateResults(
-            string userId, 
-            int subCategoryId, 
-            int[] answerOptionIds, 
+            string userId,
+            int subCategoryId,
+            int[] answerOptionIds,
+            Guid attemptId,
             ref DateTime answeredAt)
         {
             var results = new List<UserResult>();
@@ -76,7 +83,8 @@ namespace CyberQuiz.DAL.Data
                     QuestionId = GetQuestionIdFromAnswerOption(answerOptionId),
                     AnswerOptionId = answerOptionId,
                     IsCorrect = IsAnswerCorrect(answerOptionId),
-                    AnsweredAt = answeredAt
+                    AnsweredAt = answeredAt,
+                    AttemptId = attemptId
                 });
 
                 answeredAt = answeredAt.AddMinutes(2);
