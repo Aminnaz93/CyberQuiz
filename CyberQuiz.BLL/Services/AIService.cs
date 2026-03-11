@@ -128,32 +128,39 @@ namespace CyberQuiz.BLL.Services
             }
 
             sb.AppendLine();
-            sb.AppendLine("Generate valid JSON with ONLY these fields:");
-
             //tydlig instruktion hur svaret ska vara formatterat
+            sb.AppendLine("Based on the results above, generate personalized study recommendations.");
+            sb.AppendLine();
+            sb.AppendLine("IMPORTANT: Analyze the ACTUAL results above, do NOT copy the example below!");
+            sb.AppendLine();
+            sb.AppendLine("Return your response in this EXACT JSON structure (note: recommendedResources is an ARRAY):");
             sb.AppendLine(@"{
-  ""summary"": ""2-3 sentences analyzing strengths and weaknesses"",
+  ""summary"": ""<Write 2-3 sentences analyzing THIS USER's actual strengths and weaknesses>"",
   ""recommendations"": [
     {
-      ""topic"": ""Phishing Detection"",
-      ""reason"": ""Only 33% success rate indicates need for improvement"",
+      ""topic"": ""<Name of the weakest topic from the results>"",
+      ""reason"": ""<Why this user needs to focus here based on their results>"",
       ""recommendedResources"": [
         {
-          ""title"": ""OWASP Phishing Guide"",
-          ""url"": ""https://owasp.org/phishing"",
-          ""description"": ""Learn to identify phishing attacks"",
+          ""title"": ""<Real resource title>"",
+          ""url"": ""<Real URL to a real cybersecurity learning resource>"",
+          ""description"": ""<Brief description of what this resource teaches>"",
           ""type"": ""article""
         }
       ],
-      ""keyConceptsToFocus"": [""Email verification"", ""URL inspection"", ""Social engineering tactics""]
+      ""keyConceptsToFocus"": [""<Concept 1>"", ""<Concept 2>"", ""<Concept 3>""]
     }
   ]
 }");
             sb.AppendLine();
-            sb.AppendLine("RULES:");
-            sb.AppendLine("1. Use ONLY the fields shown above (topic, reason, recommendedResources, keyConceptsToFocus)");
-            sb.AppendLine("2. Generate 2-3 recommendations with real URLs");
-            sb.AppendLine("3. Return ONLY valid JSON, no extra text");
+            sb.AppendLine("CRITICAL INSTRUCTIONS:");
+            sb.AppendLine("1. recommendedResources MUST be an ARRAY with square brackets []");
+            sb.AppendLine("2. Focus on categories with LOWEST success rates from the results above");
+            sb.AppendLine("3. Mention SPECIFIC topics from the actual quiz results");
+            sb.AppendLine("4. Generate 2-3 recommendations for weak areas");
+            sb.AppendLine("5. Use real URLs to cybersecurity resources (OWASP, NIST, SANS, Cisco, etc.)");
+            sb.AppendLine("6. Return ONLY the JSON object, no markdown code blocks, no extra text");
+            sb.AppendLine("7. Each recommendation should have 1-2 resources in the array");
 
             return sb.ToString();
         }
@@ -217,11 +224,15 @@ namespace CyberQuiz.BLL.Services
                 if (jsonStart >= 0 && jsonEnd > jsonStart)
                 {
                     var jsonString = aiResponse.Substring(jsonStart, jsonEnd - jsonStart);
+                    _logger.LogInformation("Attempting to parse JSON (length: {Length}): {Json}", 
+                        jsonString.Length, 
+                        jsonString.Length > 500 ? jsonString.Substring(0, 500) + "..." : jsonString);
+
                     var parsed = JsonSerializer.Deserialize<AIRecommendationResponseDto>(
                         jsonString,
                         new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                    if (parsed != null)
+                    if (parsed != null && parsed.Recommendations != null && parsed.Recommendations.Any())
                     {
                         //lägg till lite statistik
                         parsed.TotalQuestionsAnswered = userResults.Count();
@@ -233,21 +244,29 @@ namespace CyberQuiz.BLL.Services
                         parsed.WeakestCategory = analysis.FirstOrDefault()?.SubCategoryName;
                         parsed.StrongestCategory = analysis.LastOrDefault()?.SubCategoryName;
 
+                        _logger.LogInformation("Successfully parsed {Count} recommendations", parsed.Recommendations.Count);
                         return parsed;
                     }
-
-                    _logger.LogWarning("AI returned null after deserialization. Response: {Response}",
-                        jsonString.Length > 100 ? jsonString.Substring(0, 100) + "..." : jsonString);
+                    else if (parsed != null)
+                    {
+                        _logger.LogWarning("AI returned valid JSON but no recommendations. Recommendations count: {Count}", 
+                            parsed.Recommendations?.Count ?? 0);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("AI returned null after deserialization.");
+                    }
                 }
                 else
                 {
                     _logger.LogWarning("No valid JSON found in AI response. Response: {Response}",
-                        aiResponse.Length > 100 ? aiResponse.Substring(0, 100) + "..." : aiResponse);
+                        aiResponse.Length > 200 ? aiResponse.Substring(0, 200) + "..." : aiResponse);
                 }
             }
             catch (JsonException ex)
             {
-                _logger.LogWarning(ex, "Failed to deserialize AI response as JSON. Using fallback.");
+                _logger.LogWarning(ex, "Failed to deserialize AI response as JSON. Response was: {Response}",
+                    aiResponse.Length > 300 ? aiResponse.Substring(0, 300) + "..." : aiResponse);
             }
             catch (ArgumentException ex)
             {
