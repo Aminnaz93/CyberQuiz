@@ -134,10 +134,16 @@ namespace CyberQuiz.BLL.Services
             if (userResults == null || !userResults.Any())
                 return false;
 
-            // Räkna ut om användaren nått >= 80% rätt på föregående subkategori
-            var resultList = userResults.ToList();
-            var correctCount = resultList.Count(r => r.IsCorrect);
-            return (double)correctCount / resultList.Count >= QuizConstants.MinPassScore;
+            // Ta senaste svaret per fråga – om användaren gjort quizet flera gånger
+            // räknas bara det senaste svaret per fråga för att undvika att gamla försök
+            // ackumuleras och drar ner (eller upp) resultatet
+            var latestPerQuestion = userResults
+                .GroupBy(r => r.QuestionId)
+                .Select(g => g.OrderByDescending(r => r.AnsweredAt).First())
+                .ToList();
+
+            var correctCount = latestPerQuestion.Count(r => r.IsCorrect);
+            return (double)correctCount / latestPerQuestion.Count >= QuizConstants.MinPassScore;
         }
     }
 }
