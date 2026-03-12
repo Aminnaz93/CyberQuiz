@@ -63,16 +63,50 @@ namespace CyberQuiz.BLL.Services
             var userResults = await _userResultRepository.GetAllUserResultsByUserIdAsync(userId);
 
             // Grupperar per subkategori och räknar ut om användaren nått >= 80% rätt
-            //Ska returnera användarId, SubCategoryId och om kategorin är klar (>= 80% rätt) eller inte 
+            // Använder samma "bästa omgång vinner"-logik som QuizService
             var progression = userResults
                 .GroupBy(ur => ur.Question.SubCategoryId)
-                .Select(group => new ProgressionDto
+                .Select(group =>
                 {
-                    UserId = userId,
-                    SubCategoryId = group.Key,
-                    SubCategoryName = group.First().Question.SubCategory.Name,
-                    CategoryName = group.First().Question.SubCategory.Category.Name,
-                    IsPassed = (double)group.Count(r => r.IsCorrect) / group.Count() >= QuizConstants.MinPassScore
+                    bool isPassed = false;
+
+                    // Kolla bästa AttemptId-baserade omgång
+                    var attemptsWithId = group
+                        .Where(r => r.AttemptId.HasValue)
+                        .GroupBy(r => r.AttemptId)
+                        .ToList();
+
+                    if (attemptsWithId.Any())
+                    {
+                        var bestScore = attemptsWithId
+                            .Select(g => (double)g.Count(r => r.IsCorrect) / g.Count())
+                            .Max();
+                        isPassed = bestScore >= QuizConstants.MinPassScore;
+                    }
+
+                    // Kolla även äldre data utan AttemptId
+                    if (!isPassed)
+                    {
+                        var seededResults = group.Where(r => !r.AttemptId.HasValue).ToList();
+                        if (seededResults.Any())
+                        {
+                            var latestPerQuestion = seededResults
+                                .GroupBy(r => r.QuestionId)
+                                .Select(g => g.OrderByDescending(r => r.AnsweredAt).First())
+                                .ToList();
+                            var correctCount = latestPerQuestion.Count(r => r.IsCorrect);
+                            isPassed = (double)correctCount / latestPerQuestion.Count >= QuizConstants.MinPassScore;
+                        }
+                    }
+
+                    return new ProgressionDto
+                    {
+                        UserId = userId,
+                        SubCategoryId = group.Key,
+                        SubCategoryName = group.First().Question.SubCategory.Name,
+                        CategoryName = group.First().Question.SubCategory.Category.Name,
+                        IsPassed = isPassed
+                    };
                 })
                 .OrderBy(p => p.CategoryName)
                 .ThenBy(p => p.SubCategoryId)
