@@ -9,5 +9,6 @@ namespace CyberQuiz.Shared.DTOs
         public int QuestionId { get; init; }
         public int SelectedAnswerOptionId { get; init; }
         public string UserId { get; init; } = string.Empty;
+        public Guid AttemptId { get; init; } // identifierar vilken quiz-omgång svaret tillhör
     }
 }

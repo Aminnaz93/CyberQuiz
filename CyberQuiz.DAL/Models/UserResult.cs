@@ -18,5 +18,8 @@
         // FK till valt svar
         public int AnswerOptionId { get; set; }
         public AnswerOption AnswerOption { get; set; }
+
+        // Grupperar svar från samma quiz-omgång (null = gammalt svar utan omgångsspårning)
+        public Guid? AttemptId { get; set; }
     }
 }

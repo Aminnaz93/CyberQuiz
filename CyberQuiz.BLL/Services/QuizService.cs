@@ -1,3 +1,4 @@
+using CyberQuiz.DAL.Models;
 using CyberQuiz.DAL.Repositories;
 using CyberQuiz.Shared.Constants;
 using CyberQuiz.Shared.DTOs;
@@ -28,27 +29,31 @@ namespace CyberQuiz.BLL.Services
         //- I NÄSTLADE DTOs!
         public async Task<List<CategoryDto>> GetAllCategoriesAsync(string userId)
         {
-            // Hämtar kategorier med subkategorier genom Include i DAL
             var categories = await _categoryRepository.GetAllCategoriesWithSubCategoriesAsync();
 
-            var result = new List<CategoryDto>();
+            // Hämta allt vi behöver EN GÅNG innan loopen, annars blir det DB-anrop per subkategori
+            var allUserResults = await _userResultRepository.GetAllUserResultsByUserIdAsync(userId);
+            var allSubCategoriesWithQuestions = await _subCategoryRepository.GetAllSubCategoriesWithQuestionsAsync();
 
-            //Loopar igenom kategorier och subkategorier för att skapa DTOs och kolla upplåsning
-            //Lägger i vars en DTO-lista för att skicka till frontend
+            // Sparar antal frågor per subkategori i en dictionary (Id → antal frågor)
+            // så att vi kan slå upp det snabbt i loopen utan extra DB-anrop
+            //Kan egenligen i vårt fall direkt sätta till 10 frågor/kategori men om det skulle variera eller ändras så kollas det upp!
+            var questionCountLookup = allSubCategoriesWithQuestions
+                .ToDictionary(sc => sc.Id, sc => sc.Questions?.Count ?? 0);
+
+            var result = new List<CategoryDto>();
+            //Loopar genom för att sätta categorier i en DTO och subkategorier i en DTO
             foreach (var category in categories)
             {
                 var subCategoryDtos = new List<SubCategoryDto>();
 
-                // Sorterar subkategorier på OrderIndex så att ordningen alltid är rätt
+                // Sorterar på OrderIndex så att ordningen alltid är rätt
                 var sortedSubCategories = category.SubCategories.OrderBy(sc => sc.OrderIndex).ToList();
 
                 foreach (var sc in sortedSubCategories)
                 {
-                    //Kollar om subkategorin är upplåst för den aktuella användaren 
-                    var isUnlocked = await IsSubCategoryUnlockedAsync(userId, sc.Id);
-
-                    // Hämta med frågor för att kunna räkna antal frågor i subkategorin (för att visa i UI)
-                    var subCategoryWithQuestions = await _subCategoryRepository.GetSubCategoryWithQuestionsAsync(sc.Id);
+                    // Kollar upplåsning med redan hämtad data - inga extra DB-anrop
+                    var isUnlocked = IsSubCategoryUnlockedFromData(sc.Id, sortedSubCategories, allUserResults);
 
                     subCategoryDtos.Add(new SubCategoryDto
                     {
@@ -57,7 +62,7 @@ namespace CyberQuiz.BLL.Services
                         OrderIndex = sc.OrderIndex,
                         CategoryId = sc.CategoryId,
                         IsUnlocked = isUnlocked,
-                        QuestionCount = subCategoryWithQuestions?.Questions?.Count ?? 0 //Antal frågor i subkategorin, 0 om null
+                        QuestionCount = questionCountLookup.GetValueOrDefault(sc.Id, 0) //0 ifall den inte skulle hitta id
                     });
                 }
 
@@ -100,6 +105,7 @@ namespace CyberQuiz.BLL.Services
             return result;
         }
 
+        //DEN GAMLA METODEN - ANVÄNDS INTE LÄNGRE!
         // Kontrollerar om en subkategori är upplåst för en användare.
         // Första subkategorin i en kategori ska alltid vara upplåst.
         // Övriga kräver att föregående subkategori är klarad med >= 80% rätt.
@@ -134,10 +140,81 @@ namespace CyberQuiz.BLL.Services
             if (userResults == null || !userResults.Any())
                 return false;
 
-            // Räkna ut om användaren nått >= 80% rätt på föregående subkategori
-            var resultList = userResults.ToList();
-            var correctCount = resultList.Count(r => r.IsCorrect);
-            return (double)correctCount / resultList.Count >= QuizConstants.MinPassScore;
+            // Gruppera på AttemptId och hitta bästa genomförda quiz-omgång
+            var attemptsWithId = userResults
+                .Where(r => r.AttemptId.HasValue)
+                .GroupBy(r => r.AttemptId)
+                .ToList();
+
+            if (attemptsWithId.Any())
+            {
+                // Bästa omgång = den med högst andel rätt svar
+                var bestScore = attemptsWithId
+                    .Select(g => (double)g.Count(r => r.IsCorrect) / g.Count())
+                    .Max();
+                return bestScore >= QuizConstants.MinPassScore;
+            }
+
+            // Fallback för äldre data utan AttemptId: senaste svaret per fråga
+            var latestPerQuestion = userResults
+                .GroupBy(r => r.QuestionId)
+                .Select(g => g.OrderByDescending(r => r.AnsweredAt).First())
+                .ToList();
+
+            var correctCount = latestPerQuestion.Count(r => r.IsCorrect);
+            return (double)correctCount / latestPerQuestion.Count >= QuizConstants.MinPassScore;
+        }
+
+        // Samma logik som IsSubCategoryUnlockedAsync men arbetar på redan hämtad data för att slippa så många DB-anrop...
+        private bool IsSubCategoryUnlockedFromData(int subCategoryId, List<SubCategory> siblingsInCategory, IEnumerable<UserResult> allUserResults)
+        {
+            // Första subkategorin är alltid upplåst
+            if (siblingsInCategory.First().Id == subCategoryId)
+                return true;
+
+            //Sätter nuvarande kategori om det inte är den första!
+            var currentSubCategory = siblingsInCategory.FirstOrDefault(sc => sc.Id == subCategoryId);
+            if (currentSubCategory == null)
+                return false;
+
+            // Hitta föregående subkategori
+            var previousSubCategory = siblingsInCategory
+                .LastOrDefault(sc => sc.OrderIndex < currentSubCategory.OrderIndex);
+
+            if (previousSubCategory == null)
+                return true;
+
+            // Filtrera användarens resultat till föregående subkategori (i minnet, inte DB)
+            var userResults = allUserResults
+                .Where(r => r.Question?.SubCategoryId == previousSubCategory.Id)
+                .ToList();
+
+            if (!userResults.Any())
+                return false;
+
+            // Samma beräkning som i IsSubCategoryUnlockedAsync - bästa omgång vinner
+            var attemptsWithId = userResults
+                .Where(r => r.AttemptId.HasValue)
+                .GroupBy(r => r.AttemptId)
+                .ToList();
+
+            if (attemptsWithId.Any())
+            {
+                //Hittar bästa resultatet
+                var bestScore = attemptsWithId
+                    .Select(g => (double)g.Count(r => r.IsCorrect) / g.Count())
+                    .Max();
+                return bestScore >= QuizConstants.MinPassScore; //returerar true/false utifrån 80%-regeln i QuizConstants
+            }
+
+            // Fallback för äldre data sparad innan denna ändringen som inte har AttemptId
+            var latestPerQuestion = userResults
+                .GroupBy(r => r.QuestionId)
+                .Select(g => g.OrderByDescending(r => r.AnsweredAt).First())
+                .ToList();
+
+            var correctCount = latestPerQuestion.Count(r => r.IsCorrect);
+            return (double)correctCount / latestPerQuestion.Count >= QuizConstants.MinPassScore;
         }
     }
 }
