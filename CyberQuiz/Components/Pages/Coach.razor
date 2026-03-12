@@ -637,23 +637,19 @@
     private bool isLoadingChat = false;
     private string? userId;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         userId = AuthService.UserId;
 
         if (userId == null)
         {
             NavigationManager.NavigateTo("/login");
-            return;
         }
-
-        await LoadRecommendations();
     }
 
     protected override async Task OnParametersSetAsync()
     {
-        // Körs varje gång SubCategoryId eller SubCategoryName ändras i URL:en
-        // Detta säkerställer att nya recommendations laddas vid navigering
+        // Körs både vid initial laddning och varje gång SubCategoryId/SubCategoryName ändras i URL:en
         if (userId != null)
         {
             await LoadRecommendations();
